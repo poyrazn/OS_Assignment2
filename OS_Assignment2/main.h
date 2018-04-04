@@ -14,5 +14,6 @@
 void *student_runner(void *id);
 void *TA_runner(void);
 void rand_sleep(void);
+int isWaiting(int id);
 
 #endif /* main_h */
