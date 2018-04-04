@@ -16,6 +16,8 @@
 #define SLEEP_MAX 5
 #define SEM_TA "sem_ta"
 #define SEM_STU "sem_stu"
+#define NUM_STU 15
+
 
 // semaphores
 sem_t *sem_student;
@@ -24,12 +26,13 @@ sem_t *sem_ta;
 // mutex
 pthread_mutex_t mutex;
 
-int freeSeats = NUM_SEAT;
-int seat[NUM_SEAT];
-int next_seat = 0;
-int next_teach = 0;
+int freeSeats = NUM_SEAT;   // number of available seats in the waiting area
+int seat[NUM_SEAT];         // elements of the array are studentIDs
+int *next_seat, *next_teach;
 
 int main(int argc, const char * argv[]) {
+    next_seat = seat;
+    next_teach = seat;
     
     //threads
     pthread_t *students;
@@ -37,9 +40,17 @@ int main(int argc, const char * argv[]) {
 
     int numstu;
     int *id;
-    
-    printf("How many students?\t");
-    scanf("%d", &numstu);
+    if(argc != 2) {
+        fprintf(stderr,"Number of students is not specified. Using default (%d)\n", NUM_STU);
+        numstu = NUM_STU;
+    }
+    else if (atoi(argv[1]) > 0){
+        numstu = atoi(argv[1]);
+    }
+    else{
+        fprintf(stderr,"Argument must be a positive integer. Using default (%d)\n", NUM_STU);
+        numstu = NUM_STU;
+    }
     
     students = (pthread_t*)malloc(sizeof(pthread_t) * numstu);
     id = (int*)malloc(sizeof(int) * numstu);
@@ -73,16 +84,19 @@ int main(int argc, const char * argv[]) {
 void *TA_runner() {
     /* this function is run by the TA */
     while(1) {
-        sem_wait(sem_student);
-        pthread_mutex_lock(&mutex);
-        int studentID = seat[next_teach];
-        if(studentID != 0){
+        sem_wait(sem_student);          // waiting for student semaphore to be 1 (studentReady)
+        pthread_mutex_lock(&mutex);     // mutex on the chairs
+        int studentID = *next_teach;    // next student to teach
+        if(studentID != 0){             // 0 is an invalid studentID, indicating that the seat is empty
             printf("TA is teaching student %d\n", studentID);
-            seat[next_teach]=0;
+            *next_teach = 0;
             freeSeats++;
             printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
-            next_teach = (next_teach + 1) % NUM_SEAT;
-            rand_sleep();
+            if (next_teach == &seat[NUM_SEAT-1])
+                next_teach = seat;
+            else
+                next_teach++;
+            
             printf("TA finished teaching student %d\n", studentID);
         }
         pthread_mutex_unlock(&mutex);
@@ -97,26 +111,43 @@ void *student_runner(void *id) {
     while(1) {
         rand_sleep();
         pthread_mutex_lock(&mutex);
+//            int waiting = isWaiting(studentID);
         if(freeSeats > 0) {
-            seat[next_seat] = studentID;
+//                if(!waiting) {
+            *next_seat = studentID;
             freeSeats--;
             printf("Student %d is waiting\n", studentID);
             printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
-            next_seat = (next_seat+1) % NUM_SEAT;
+            if (next_seat == &seat[NUM_SEAT-1])
+                next_seat = seat;
+            else
+                next_seat++;
+//                }
             pthread_mutex_unlock(&mutex);
             sem_post(sem_student);
             sem_wait(sem_ta);
         }
         else{
             pthread_mutex_unlock(&mutex);
-            printf("No available seats, student %d will come back another time\n", studentID);
+//                if(!waiting)
+                printf("No available seats, student %d will come back another time\n", studentID);
+            rand_sleep();
         }
     }
 }
 
+
 void rand_sleep(void){
     int time = rand() % SLEEP_MAX + 1;
     sleep(time);
+}
+
+int isWaiting(int id) {
+    for (int i = 0; i < NUM_SEAT; i++){
+        if (seat[i] == id)
+            return 1;
+    }
+    return 0;
 }
 
 
