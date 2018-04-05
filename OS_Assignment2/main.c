@@ -88,15 +88,16 @@ void *TA_runner() {
         pthread_mutex_lock(&mutex);     // mutex on the chairs
         int studentID = *next_teach;    // next student to teach
         if(studentID != 0){             // 0 is an invalid studentID, indicating that the seat is empty
-            printf("TA is teaching student %d\n", studentID);
+            printf("TA is helping student %d\n", studentID);
             *next_teach = 0;            // empty the seat
             freeSeats++;                // increase the number of available seats
-            printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
             if (next_teach == &seat[NUM_SEAT-1])
                 next_teach = seat;
             else
                 next_teach++;
-            printf("TA finished teaching student %d\n", studentID);
+            printf("TA has finished helping student %d\n", studentID);
+            printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
+
         }
         pthread_mutex_unlock(&mutex);   // unlock the mutex
         sem_post(sem_ta);               // signal TA ready to teach other students, increase sem_ta
@@ -110,9 +111,7 @@ void *student_runner(void *id) {
     while(1) {
         rand_sleep();
         pthread_mutex_lock(&mutex);     // mutex on the chairs
-//            int waiting = isWaiting(studentID);
         if(freeSeats > 0) {
-//                if(!waiting) {
             *next_seat = studentID;     // sit on the next seat
             freeSeats--;                // decrease the number of available seats
             printf("Student %d is waiting\n", studentID);
@@ -121,16 +120,13 @@ void *student_runner(void *id) {
                 next_seat = seat;
             else
                 next_seat++;
-//                }
             pthread_mutex_unlock(&mutex);   // unlock the mutex
             sem_post(sem_student);          // signal student ready, increase sem_ta
             sem_wait(sem_ta);               // wait for sem_ta
         }
         else{
+            printf("No available seats, student %d will come back another time\n", studentID);
             pthread_mutex_unlock(&mutex);
-//                if(!waiting)
-                printf("No available seats, student %d will come back another time\n", studentID);
-            rand_sleep();
         }
     }
 }
@@ -141,13 +137,6 @@ void rand_sleep(void){
     sleep(time);
 }
 
-int isWaiting(int id) {
-    for (int i = 0; i < NUM_SEAT; i++){
-        if (seat[i] == id)
-            return 1;
-    }
-    return 0;
-}
 
 
 
