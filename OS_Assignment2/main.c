@@ -89,18 +89,17 @@ void *TA_runner() {
         int studentID = *next_teach;    // next student to teach
         if(studentID != 0){             // 0 is an invalid studentID, indicating that the seat is empty
             printf("TA is teaching student %d\n", studentID);
-            *next_teach = 0;
-            freeSeats++;
+            *next_teach = 0;            // empty the seat
+            freeSeats++;                // increase the number of available seats
             printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
             if (next_teach == &seat[NUM_SEAT-1])
                 next_teach = seat;
             else
                 next_teach++;
-            
             printf("TA finished teaching student %d\n", studentID);
         }
-        pthread_mutex_unlock(&mutex);
-        sem_post(sem_ta);
+        pthread_mutex_unlock(&mutex);   // unlock the mutex
+        sem_post(sem_ta);               // signal TA ready to teach other students, increase sem_ta
     }
 }
 
@@ -110,12 +109,12 @@ void *student_runner(void *id) {
     printf("Student %d is programming\n", studentID);
     while(1) {
         rand_sleep();
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&mutex);     // mutex on the chairs
 //            int waiting = isWaiting(studentID);
         if(freeSeats > 0) {
 //                if(!waiting) {
-            *next_seat = studentID;
-            freeSeats--;
+            *next_seat = studentID;     // sit on the next seat
+            freeSeats--;                // decrease the number of available seats
             printf("Student %d is waiting\n", studentID);
             printf("Waiting students: [%d] [%d] [%d]\n", seat[0], seat[1], seat[2]);
             if (next_seat == &seat[NUM_SEAT-1])
@@ -123,9 +122,9 @@ void *student_runner(void *id) {
             else
                 next_seat++;
 //                }
-            pthread_mutex_unlock(&mutex);
-            sem_post(sem_student);
-            sem_wait(sem_ta);
+            pthread_mutex_unlock(&mutex);   // unlock the mutex
+            sem_post(sem_student);          // signal student ready, increase sem_ta
+            sem_wait(sem_ta);               // wait for sem_ta
         }
         else{
             pthread_mutex_unlock(&mutex);
